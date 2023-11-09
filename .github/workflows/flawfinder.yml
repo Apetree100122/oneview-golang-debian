@@ -1,13 +1,11 @@
 # This workflow uses actions that are not certified by GitHub.They are provided by a third-party and are governed by separate terms of service, privacy policy, and support documentation.
-
 name: flawfinder
-
 on:
   push:
     branches: [ "master", "*master" ]
-  pull_request: # The branches below must be a subset of the branches above
-    branches: 
-               [ "master" ]
+  pull_request:  The branches below must be a subset of
+                 the branches above
+  branches:  [ "master" ]
   schedule:
   
   cron:
@@ -26,11 +24,11 @@ on:
 
       - name: flawfinder_scan
         uses: " */*
-        with:
-      arguments: '-sarif 
-          output: 'flawfinder_results.sarif'
-
-      - name: Upload analysis results to GitHub Security tab
+          
+            with:
+           arguments: '-sarif 
+            output: 'flawfinder_results.sarif'
+- name: Upload analysis results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: ${{github.workspace}}/flawfinder_results.sarif
