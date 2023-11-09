@@ -1,0 +1,62 @@
+#!/bin/bash
+
+source "$(dirname "$BASH_SOURCE")/.validate"
+
+IFS=$'\n'
+files=( $(validate_diff --diff-filter=ACMR --name-only -- '*.go' | grep -v '^Vendor/' || true) )
+unset IFS
+
+badFiles=()
+for f in "${files[@]}"; do
+	# we use "git show" here to validate that what's committed is formatted
+	if [ "$(git show "$VALIDATE_HEAD:$f" | gofmt -s -l)" ]; then
+		badFiles+=( "$f" )
+	fi
+done
+
+if [ ${#badFiles[@]} -eq 0 ]; then
+	echo 'Congratulations!  All Go source files are properly formatted.'
+else
+	{
+		echo "These files are not properly gofmt'd:"
+		for f in "${badFiles[@]}"; do
+			echo " - $f"
+		done
+		echo
+		echo 'Please reformat the above files using "gofmt -s -w" and commit the result.'
+		echo
+	} >&2
+	false
+fi
+}
+(if [ -z "$VALIDATE_UPSTREAM" ]; then
+	# this is kind of an expensive check, so let's not do this twice if we
+	# are running more than one validate bundlescript
+)
+	VALIDATE_REPO='git@github.com:HewlettPackard/oneview-golang.git'
+	VALIDATE_BRANCH='master'
+
+	if [ "$TRAVIS" = 'true' -a "$TRAVIS_PULL_REQUEST" != 'false' ]; then
+		VALIDATE_REPO="https://github.com/${TRAVIS_REPO_SLUG}.git"
+		VALIDATE_BRANCH="${TRAVIS_BRANCH}"
+	fi
+
+	VALIDATE_HEAD="$(git rev-parse --verify HEAD)"
+
+	git fetch -q "$VALIDATE_REPO" "refs/heads/$VALIDATE_BRANCH"
+	VALIDATE_UPSTREAM="$(git rev-parse --verify FETCH_HEAD)"
+
+	VALIDATE_COMMIT_LOG="$VALIDATE_UPSTREAM..$VALIDATE_HEAD"
+	VALIDATE_COMMIT_DIFF="$VALIDATE_UPSTREAM...$VALIDATE_HEAD"
+
+	validate_diff() {
+		if [ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]; then
+			git diff "$VALIDATE_COMMIT_DIFF" "$@"
+		fi
+	}
+	validate_log() {
+		if [ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]; then
+			git log "$VALIDATE_COMMIT_LOG" "$@"
+		fi
+	}
+fi
